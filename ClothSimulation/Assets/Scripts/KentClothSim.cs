@@ -9,6 +9,7 @@ namespace Assets
         public Vector3 Position;
         public Vector3 Velocity;
         public Vector3 Force;
+        public bool Fixed = false;
         //List<ClothVertex> Neighbors;
     }
 
@@ -61,13 +62,16 @@ namespace Assets
 
                     ClothVertex xVert = new ClothVertex()
                     {
-                        Position = vertexLocalSpacePosition
+                        Position = vertexLocalSpacePosition,
+                        Velocity = Vector3.zero
                     };
                     toReturn.Add(new Vector2Int(i, j), xVert);
                 }
             }
 
 
+            toReturn[new Vector2Int(0, 0)].Fixed = true;
+            toReturn[new Vector2Int(0, 10)].Fixed = true;
             return toReturn;
         }
 
@@ -154,10 +158,15 @@ namespace Assets
                 Vector2Int key = keyPair.Key;
                 ClothVertex currentClothVertex = keyPair.Value;
 
+
+
+                
+
+
                 // Calculate Forces
                 {
                     //Gravity
-                    currentClothVertex.Force = GRAVITY_CONSTANT * VERTEX_MASS;
+                    currentClothVertex.Force = GRAVITY_CONSTANT * VERTEX_MASS ;
 
 
                     // TODO Wind
@@ -171,13 +180,13 @@ namespace Assets
                     List<ClothVertex> neighbors = GetNeighbors(clothStructure, key);
                     foreach (ClothVertex neighbor in neighbors)
                     {
-                        Vector3 springForceVectorToCenter = (currentClothVertex.Position - neighbor.Position  );
-                        Vector3 springForceDirectionToCenter = springForceVectorToCenter.normalized;
+                        Vector3 springForceVectorToNeighbor = (neighbor.Position -  currentClothVertex.Position    );
+                        Vector3 springForceDirectionToCenter = springForceVectorToNeighbor.normalized;
 
 
                         // Longer = Positive = Force Should Go Toward Current Cloth Vertex
                         // Shorter = Negative = Force Should Go Toward Neighbor
-                        float force = this.SPRING_STIFFNESS_CONSTANT * (springForceVectorToCenter.magnitude - this.SPRING_REST_LENGTH);
+                        float force =  this.SPRING_STIFFNESS_CONSTANT * (springForceVectorToNeighbor.magnitude - this.SPRING_REST_LENGTH);
                         
 
                         currentClothVertex.Force += springForceDirectionToCenter * force;
@@ -195,8 +204,12 @@ namespace Assets
 
                 // Integrate Position
                 {
-                    currentClothVertex.Position = currentClothVertex.Position +
-                                                  ((currentClothVertex.Velocity) * (deltaTime));
+                    if (!currentClothVertex.Fixed)
+                    {
+                        currentClothVertex.Position = currentClothVertex.Position +
+                                                      ((currentClothVertex.Velocity) * (deltaTime));
+                    }
+                    
                 }
 
                 //if (keyPair.Key.x % 2 == 0)
@@ -218,16 +231,21 @@ namespace Assets
 
                 foreach (KeyValuePair<Vector2Int, ClothVertex> keyPair in this.clothVertexStructure)
                 {
+                    ClothVertex vert = keyPair.Value;
+
+                    Vector3 start = transform.MultiplyPoint(vert.Position);
+                    Gizmos.color = Color.white;
+                    Gizmos.DrawSphere(start, 0.1f);
 
 
-
-
-
+                    Gizmos.color = Color.red;
+                    Vector3 end = start + vert.Force.normalized * 1.0f;
+                    Gizmos.DrawLine(start, end);
                 }
 
 
 
-                Vector2Int key = new  Vector2Int(0,0);
+                Vector2Int key = new  Vector2Int(1,1);
                 var neighbors = GetNeighbors(this.clothVertexStructure, key);
                 var centerVertex = this.clothVertexStructure[key];
 
