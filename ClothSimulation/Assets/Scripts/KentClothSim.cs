@@ -17,14 +17,16 @@ namespace Assets
     public class KentClothSim : MonoBehaviour
     {
         [Header("Cloth Properties")]
-        [SerializeField] [Range(0,20)] private float SPRING_STIFFNESS_CONSTANT = 1.0f;
+        [SerializeField] [Range(0,1000)] private float SPRING_STIFFNESS_CONSTANT = 1.0f;
         [SerializeField] [Range(0, 20)] private float VERTEX_MASS = 1.0f;
         [SerializeField] private Vector3 GRAVITY_CONSTANT = new Vector3(0.0f,-9.8f,0.0f);
+        [SerializeField] [Range(0, 1)] private float GRAVITY_DAMPENING = 0.2f;
 
 
         [Header("Spring Properties")]
         [SerializeField] [Range(0, 20)] private float SPRING_REST_LENGTH = 0.5f;
 
+        [SerializeField] [Range(0, 1)] private float SPRING_DAMPENING = 0.2f;
 
         private Dictionary<Vector2Int, ClothVertex> clothVertexStructure;
         private Vector2Int clothResolution = new Vector2Int(11,11);// Hardcoded due to used plane mesh
@@ -157,7 +159,7 @@ namespace Assets
 
                 Vector2Int key = keyPair.Key;
                 ClothVertex currentClothVertex = keyPair.Value;
-
+                Vector3 currentVelocity = currentClothVertex.Velocity;
 
 
                 
@@ -166,8 +168,9 @@ namespace Assets
                 // Calculate Forces
                 {
                     //Gravity
-                    currentClothVertex.Force = GRAVITY_CONSTANT * VERTEX_MASS ;
-
+                    Vector3 gravityForce = (GRAVITY_CONSTANT * VERTEX_MASS);
+                    currentClothVertex.Force += gravityForce;
+                    
 
                     // TODO Wind
 
@@ -180,20 +183,25 @@ namespace Assets
                     List<ClothVertex> neighbors = GetNeighbors(clothStructure, key);
                     foreach (ClothVertex neighbor in neighbors)
                     {
-                        Vector3 springForceVectorToNeighbor = (neighbor.Position -  currentClothVertex.Position    );
-                        Vector3 springForceDirectionToCenter = springForceVectorToNeighbor.normalized;
+                        Vector3 positionVectorToNeighbor = (neighbor.Position -  currentClothVertex.Position);
+                        Vector3 springForceDirectionToCenter = positionVectorToNeighbor.normalized;
 
 
                         // Longer = Positive = Force Should Go Toward Current Cloth Vertex
                         // Shorter = Negative = Force Should Go Toward Neighbor
-                        float force =  this.SPRING_STIFFNESS_CONSTANT * (springForceVectorToNeighbor.magnitude - this.SPRING_REST_LENGTH);
-                        
+                        float force =  this.SPRING_STIFFNESS_CONSTANT * (positionVectorToNeighbor.magnitude - this.SPRING_REST_LENGTH);
+
+                        //force = Mathf.Max(force - (this.SPRING_DAMPENING * force),0.0f);
+
+
 
                         currentClothVertex.Force += springForceDirectionToCenter * force;
                     }
                 }
 
 
+                // Dampening
+                currentClothVertex.Force = currentClothVertex.Force - (currentClothVertex.Force * SPRING_DAMPENING);
 
 
                 // Integrate Velocity
