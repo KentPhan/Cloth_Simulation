@@ -18,17 +18,28 @@ namespace Assets
 
     public class KentClothSim : MonoBehaviour
     {
+        [Header("Force Properties")]
+        [SerializeField] private Vector3 GRAVITY_CONSTANT = new Vector3(0.0f, -9.8f, 0.0f);
+
+        
+
         [Header("Cloth Properties")]
-        [SerializeField] [Range(0,1000)] private float SPRING_STIFFNESS_CONSTANT = 1.0f;
         [SerializeField] [Range(0, 20)] private float VERTEX_MASS = 1.0f;
-        [SerializeField] private Vector3 GRAVITY_CONSTANT = new Vector3(0.0f,-9.8f,0.0f);
-        [SerializeField] [Range(0, 1)] private float GRAVITY_DAMPENING = 0.2f;
+        
+        
 
 
         [Header("Spring Properties")]
-        [SerializeField] [Range(0, 20)] private float SPRING_REST_LENGTH = 0.5f;
+        [SerializeField] [Range(0, 1000)] private float SPRING_STIFFNESS_CONSTANT_STRUCTURAL = 1.0f;
+        [SerializeField] [Range(0, 1000)] private float SPRING_STIFFNESS_CONSTANT_SHEAR = 1.0f;
+        [SerializeField] [Range(0, 1000)] private float SPRING_STIFFNESS_CONSTANT_FLEXION = 1.0f;
+        [SerializeField] [Range(0, 20)] private float StructuralDistanceBetweenVertexes = 1.0f;
+
+
+        [Header("Dampening Properties")]
         [SerializeField] [Range(0, 1)] private float FORCE_DAMPENING = 0.5f;
         [SerializeField] [Range(0, 1)] private float VELOCITY_DAMPENING = 0.5f;
+        [SerializeField] [Range(0, 1)] private float GRAVITY_DAMPENING = 0.2f;
 
         private Dictionary<Vector2Int, ClothVertex> clothVertexStructure;
         private Vector2Int clothResolution = new Vector2Int(11,11);// Hardcoded due to used plane mesh
@@ -226,7 +237,7 @@ namespace Assets
                     //Gravity
                     Vector3 gravityForce = (GRAVITY_CONSTANT * VERTEX_MASS);
                     currentClothVertex.Force += gravityForce;
-                    
+
 
                     // TODO Wind
 
@@ -234,20 +245,23 @@ namespace Assets
 
 
                     //Spring Forces
+                    float restLengthStructural = StructuralDistanceBetweenVertexes;// Equivalent to With of Cloth/ Vertexes in a a width
+                    float restLengthShear = restLengthStructural * Mathf.Sqrt(2.0f);
+                    float restLengthFlexion = restLengthStructural * 2.0f;
                     foreach (ClothVertex neighbor in currentClothVertex.StructuralNeighbors)
                     {
                         currentClothVertex.Force += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position,
-                            this.SPRING_STIFFNESS_CONSTANT, this.SPRING_REST_LENGTH);
+                            this.SPRING_STIFFNESS_CONSTANT_STRUCTURAL, restLengthStructural);
                     }
                     foreach (ClothVertex neighbor in currentClothVertex.ShearNeighbors)
                     {
                         currentClothVertex.Force += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position,
-                            this.SPRING_STIFFNESS_CONSTANT, this.SPRING_REST_LENGTH);
+                            this.SPRING_STIFFNESS_CONSTANT_SHEAR, restLengthShear);
                     }
                     foreach (ClothVertex neighbor in currentClothVertex.FlexionNeighbors)
                     {
                         currentClothVertex.Force += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position,
-                            this.SPRING_STIFFNESS_CONSTANT, this.SPRING_REST_LENGTH);
+                            this.SPRING_STIFFNESS_CONSTANT_FLEXION, restLengthFlexion);
                     }
                 }
 
