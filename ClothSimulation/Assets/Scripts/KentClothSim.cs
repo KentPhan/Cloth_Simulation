@@ -7,6 +7,7 @@ namespace Assets
     public class ClothVertex
     {
         public Vector3 Position;
+        public Vector3 Normal;
         public Vector3 Velocity;
         public Vector3 Force;
         public bool Fixed = false;
@@ -66,19 +67,24 @@ namespace Assets
         private static Dictionary<Vector2Int, ClothVertex> ConstructClothMeshDataStructure(Mesh givenMesh,Vector2Int resolution)
         {
             Vector3[] vertices = givenMesh.vertices;
-            
+            Vector3[] normals = givenMesh.normals;
+
             // Construct Dictionary
             Dictionary<Vector2Int, ClothVertex> toReturn = new Dictionary<Vector2Int, ClothVertex>();
             for (int i = 0; i < resolution.x; i++)
             {
                 for (int j = 0; j < resolution.y; j++)
                 {
-                    Vector3 vertexLocalSpacePosition = vertices[(i * resolution.x) + j];
+                    int index = (i * resolution.x) + j;
+                    Vector3 vertexLocalSpacePosition = vertices[index];
+                    Vector3 vertexNormal = normals[index];
 
                     ClothVertex xVert = new ClothVertex()
                     {
                         Position = vertexLocalSpacePosition,
-                        Velocity = Vector3.zero
+                        Normal = vertexNormal,
+                        Force = Vector3.zero,
+                        Velocity = Vector3.zero,
                     };
                     toReturn.Add(new Vector2Int(i, j), xVert);
                 }
@@ -104,6 +110,23 @@ namespace Assets
             }
 
             return toReturn;
+        }
+
+        public static void UpdateClothMeshDataNormalsFromDataStructure(
+            Dictionary<Vector2Int, ClothVertex> clothStructure, Mesh givenMesh, Vector2Int resolution)
+        {
+            Vector3[] normals = givenMesh.normals;
+
+            for (int i = 0; i < resolution.x; i++)
+            {
+                for (int j = 0; j < resolution.y; j++)
+                {
+                    int index = (i * resolution.x) + j;
+                    Vector3 vertexNormal = normals[index];
+
+                    clothStructure[new Vector2Int(i, j)].Normal = vertexNormal;
+                }
+            }
         }
 
         private static void GetMassSpringNeighbors(Dictionary<Vector2Int, ClothVertex> clothStructure, Vector2Int targetKey, out List<ClothVertex> o_structuralNeighbors, out List<ClothVertex> o_shearNeighbors, out List<ClothVertex> o_flexionNeighbors)
@@ -206,20 +229,23 @@ namespace Assets
 
         private void FixedUpdate()
         {
-            UpdateSimulateCloth(this.clothVertexStructure);
+            float deltaTime = Time.fixedDeltaTime;
+            UpdateSimulateCloth(this.clothVertexStructure, deltaTime);
 
-            GetComponent<MeshFilter>().mesh.vertices = ConstructVertexArrayFromDataStructure(this.clothVertexStructure, this.clothResolution);
-            GetComponent<MeshFilter>().mesh.RecalculateNormals();
-            GetComponent<MeshFilter>().mesh.RecalculateTangents();
+            Mesh givenMesh = GetComponent<MeshFilter>().mesh;
+            givenMesh.vertices = ConstructVertexArrayFromDataStructure(this.clothVertexStructure, this.clothResolution);
+            givenMesh.RecalculateNormals();
+            givenMesh.RecalculateTangents();
+            UpdateClothMeshDataNormalsFromDataStructure(this.clothVertexStructure, givenMesh, this.clothResolution);
         }
 
 
 
 
-        private void UpdateSimulateCloth(Dictionary<Vector2Int, ClothVertex> clothStructure)
+        private void UpdateSimulateCloth(Dictionary<Vector2Int, ClothVertex> clothStructure, float deltaTime)
         {
 
-            float deltaTime = Time.fixedDeltaTime;
+            
 
             foreach (KeyValuePair<Vector2Int, ClothVertex> keyPair in clothStructure)
             {
@@ -268,6 +294,10 @@ namespace Assets
 
                 // Dampening All Forces
                 currentClothVertex.Force = currentClothVertex.Force - (currentClothVertex.Force * FORCE_DAMPENING);
+                //currentClothVertex.Force = currentClothVertex.Force - (currentVelocity * FORCE_DAMPENING);
+
+                // Viscous Fluid
+                //currentClothVertex.Force +=
 
 
                 // Integrate Velocity
@@ -275,7 +305,7 @@ namespace Assets
                     currentClothVertex.Velocity = currentClothVertex.Velocity +
                                                   ((currentClothVertex.Force / VERTEX_MASS) * (deltaTime));
 
-                    // Dampening Velocity
+                    //// Dampening Velocity
                     currentClothVertex.Velocity =
                         currentClothVertex.Velocity - (currentClothVertex.Velocity * VELOCITY_DAMPENING);
 
@@ -315,9 +345,21 @@ namespace Assets
                     Gizmos.DrawSphere(start, 0.1f);
 
 
-                    Gizmos.color = Color.red;
-                    Vector3 end = start + vert.Force.normalized * 1.0f;
-                    Gizmos.DrawLine(start, end);
+                    // Draw Force Vector
+                    {
+                        Gizmos.color = Color.red;
+                        Vector3 end = start + vert.Force.normalized * 1.0f;
+                        Gizmos.DrawLine(start, end);
+                    }
+
+
+                    // Draw Normal
+                    {
+                        Gizmos.color = Color.green;
+                        Vector3 end = start + vert.Normal.normalized * 1.0f;
+                        Gizmos.DrawLine(start, end);
+                    }
+
                 }
 
 
