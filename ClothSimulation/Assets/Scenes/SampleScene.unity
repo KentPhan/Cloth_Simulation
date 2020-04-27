@@ -558,17 +558,22 @@ PrefabInstance:
     - target: {fileID: 976523438627532071, guid: 95ad5f055afe455468b21e4047c12ef2,
         type: 3}
       propertyPath: SPRING_REST_LENGTH
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 976523438627532071, guid: 95ad5f055afe455468b21e4047c12ef2,
         type: 3}
       propertyPath: SPRING_STIFFNESS_CONSTANT
-      value: 4
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 976523438627532071, guid: 95ad5f055afe455468b21e4047c12ef2,
         type: 3}
       propertyPath: GRAVITY_CONSTANT.y
       value: -9.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 976523438627532071, guid: 95ad5f055afe455468b21e4047c12ef2,
+        type: 3}
+      propertyPath: SPRING_DAMPENING
+      value: 0.9999
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 95ad5f055afe455468b21e4047c12ef2, type: 3}

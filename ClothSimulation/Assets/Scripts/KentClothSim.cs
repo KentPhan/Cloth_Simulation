@@ -10,7 +10,9 @@ namespace Assets
         public Vector3 Velocity;
         public Vector3 Force;
         public bool Fixed = false;
-        //List<ClothVertex> Neighbors;
+        public List<ClothVertex> StructuralNeighbors = new List<ClothVertex>();// 1 away, Up Down Left Right
+        public List<ClothVertex> ShearNeighbors = new List<ClothVertex>();// Diagnols
+        public List<ClothVertex> FlexionNeighbors = new List<ClothVertex>();// 2 away, Up Down Left Right
     }
 
 
@@ -25,8 +27,8 @@ namespace Assets
 
         [Header("Spring Properties")]
         [SerializeField] [Range(0, 20)] private float SPRING_REST_LENGTH = 0.5f;
-
-        [SerializeField] [Range(0, 1)] private float SPRING_DAMPENING = 0.2f;
+        [SerializeField] [Range(0, 1)] private float FORCE_DAMPENING = 0.5f;
+        [SerializeField] [Range(0, 1)] private float VELOCITY_DAMPENING = 0.5f;
 
         private Dictionary<Vector2Int, ClothVertex> clothVertexStructure;
         private Vector2Int clothResolution = new Vector2Int(11,11);// Hardcoded due to used plane mesh
@@ -53,7 +55,7 @@ namespace Assets
         private static Dictionary<Vector2Int, ClothVertex> ConstructClothMeshDataStructure(Mesh givenMesh,Vector2Int resolution)
         {
             Vector3[] vertices = givenMesh.vertices;
-
+            
             // Construct Dictionary
             Dictionary<Vector2Int, ClothVertex> toReturn = new Dictionary<Vector2Int, ClothVertex>();
             for (int i = 0; i < resolution.x; i++)
@@ -71,18 +73,35 @@ namespace Assets
                 }
             }
 
-
+            // Set Anchor Points
             toReturn[new Vector2Int(0, 0)].Fixed = true;
             toReturn[new Vector2Int(0, 10)].Fixed = true;
+
+
+            // Construct Neighbor Lists
+            for (int i = 0; i < resolution.x; i++)
+            {
+                for (int j = 0; j < resolution.y; j++)
+                {
+                    Vector2Int key =  new Vector2Int(i, j);
+
+                    GetMassSpringNeighbors(toReturn, key, 
+                        out toReturn[key].StructuralNeighbors,
+                        out toReturn[key].ShearNeighbors, 
+                        out toReturn[key].FlexionNeighbors);
+                }
+            }
+
             return toReturn;
         }
 
-        private static List<ClothVertex> GetNeighbors(Dictionary<Vector2Int, ClothVertex> clothStructure,
-            Vector2Int targetKey)
+        private static void GetMassSpringNeighbors(Dictionary<Vector2Int, ClothVertex> clothStructure, Vector2Int targetKey, out List<ClothVertex> o_structuralNeighbors, out List<ClothVertex> o_shearNeighbors, out List<ClothVertex> o_flexionNeighbors)
         {
-            List<ClothVertex> neighbors = new List<ClothVertex>();
+            o_structuralNeighbors = new List<ClothVertex>();
+            o_shearNeighbors = new List<ClothVertex>();
+            o_flexionNeighbors = new List<ClothVertex>();
 
-            // Loop through neighbors
+            // Loop through neighbors and get shear and structural
             for (int i = -1; i <= 1; i++)
             {
                 for (int j = -1; j <= 1; j++)
@@ -92,11 +111,38 @@ namespace Assets
                     Vector2Int offset = new Vector2Int(i, j);
                     if (clothStructure.ContainsKey(targetKey + offset))
                     {
-                        neighbors.Add(clothStructure[targetKey + offset]);
+
+                        if (Mathf.Abs(i) != Mathf.Abs(j))
+                        {
+                            o_structuralNeighbors.Add(clothStructure[targetKey + offset]);
+                        }
+                        else
+                        {
+                            o_shearNeighbors.Add(clothStructure[targetKey + offset]);
+                        }
+                        
                     }
                 }
             }
-            return neighbors;
+
+            // Get Flexion
+            {
+                Vector2Int offset;
+                offset = new Vector2Int(0, 2);
+                if (clothStructure.ContainsKey(targetKey + offset))
+                    o_flexionNeighbors.Add(clothStructure[targetKey + offset]);
+                offset = new Vector2Int(0, -2);
+                if (clothStructure.ContainsKey(targetKey + offset))
+                    o_flexionNeighbors.Add(clothStructure[targetKey + offset]);
+                offset = new Vector2Int(2, 0);
+                if (clothStructure.ContainsKey(targetKey + offset))
+                    o_flexionNeighbors.Add(clothStructure[targetKey + offset]);
+                offset = new Vector2Int(-2, 0);
+                if (clothStructure.ContainsKey(targetKey + offset))
+                    o_flexionNeighbors.Add(clothStructure[targetKey + offset]);
+            }
+
+            return;
         }
 
 
@@ -117,23 +163,31 @@ namespace Assets
             return toReturn;
         }
 
-        //private static List<ClothVertex> GetNeighbors(Dictionary<Vector2Int, ClothVertex> structure, )
+        private static Vector3 CalculateAdditiveSpringForce(Vector3 positionCenter, Vector3 positionNeighbor, float springStiffnessConstant, float springRestLength)
+        {
+            Vector3 positionVectorToCenter = (positionCenter - positionNeighbor);
+            //Vector3 velocityVectorToCenter = (currentClothVertex.Velocity - neighbor.Velocity);
+
+            Vector3 springForceDirectionToCenter = positionVectorToCenter.normalized;
+            float currentLength = positionVectorToCenter.magnitude;
+
+            // Longer = Positive = Force Should Go Toward Current Cloth Vertex
+            // Shorter = Negative = Force Should Go Toward Neighbor
+            float springForce = springStiffnessConstant * (springRestLength - currentLength);
+            //float dampening = SPRING_DAMPENING *
+            //                  (Vector3.Dot(velocityVectorToCenter, positionVectorToCenter) / currentLength);
+
+
+
+            //force = Mathf.Max(force - (this.SPRING_DAMPENING * force),0.0f);
+            return springForceDirectionToCenter * (springForce);
+        }
+
+        
 
         // Update is called once per frame
         void Update()
         {
-            //Vector3[] vertices = this.clothMesh.vertices;
-            //Vector3[] normals = clothMesh.normals;
-            //// Modify Vertixes
-            //for (var i = 0; i < vertices.Length; i++)
-            //{
-            //    if ( i % 2 == 0)
-            //    {
-            //        //vertices[i] += normals[i] * Mathf.Sin(Time.time);
-            //    }
-                
-            //}
-
 
             
         }
@@ -144,6 +198,8 @@ namespace Assets
             UpdateSimulateCloth(this.clothVertexStructure);
 
             GetComponent<MeshFilter>().mesh.vertices = ConstructVertexArrayFromDataStructure(this.clothVertexStructure, this.clothResolution);
+            GetComponent<MeshFilter>().mesh.RecalculateNormals();
+            GetComponent<MeshFilter>().mesh.RecalculateTangents();
         }
 
 
@@ -152,7 +208,7 @@ namespace Assets
         private void UpdateSimulateCloth(Dictionary<Vector2Int, ClothVertex> clothStructure)
         {
 
-            float deltaTime = Time.deltaTime;
+            float deltaTime = Time.fixedDeltaTime;
 
             foreach (KeyValuePair<Vector2Int, ClothVertex> keyPair in clothStructure)
             {
@@ -177,37 +233,38 @@ namespace Assets
                     // TODO Air Resistance
 
 
-
-
                     //Spring Forces
-                    List<ClothVertex> neighbors = GetNeighbors(clothStructure, key);
-                    foreach (ClothVertex neighbor in neighbors)
+                    foreach (ClothVertex neighbor in currentClothVertex.StructuralNeighbors)
                     {
-                        Vector3 positionVectorToNeighbor = (neighbor.Position -  currentClothVertex.Position);
-                        Vector3 springForceDirectionToCenter = positionVectorToNeighbor.normalized;
-
-
-                        // Longer = Positive = Force Should Go Toward Current Cloth Vertex
-                        // Shorter = Negative = Force Should Go Toward Neighbor
-                        float force =  this.SPRING_STIFFNESS_CONSTANT * (positionVectorToNeighbor.magnitude - this.SPRING_REST_LENGTH);
-
-                        //force = Mathf.Max(force - (this.SPRING_DAMPENING * force),0.0f);
-
-
-
-                        currentClothVertex.Force += springForceDirectionToCenter * force;
+                        currentClothVertex.Force += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position,
+                            this.SPRING_STIFFNESS_CONSTANT, this.SPRING_REST_LENGTH);
+                    }
+                    foreach (ClothVertex neighbor in currentClothVertex.ShearNeighbors)
+                    {
+                        currentClothVertex.Force += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position,
+                            this.SPRING_STIFFNESS_CONSTANT, this.SPRING_REST_LENGTH);
+                    }
+                    foreach (ClothVertex neighbor in currentClothVertex.FlexionNeighbors)
+                    {
+                        currentClothVertex.Force += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position,
+                            this.SPRING_STIFFNESS_CONSTANT, this.SPRING_REST_LENGTH);
                     }
                 }
 
 
-                // Dampening
-                currentClothVertex.Force = currentClothVertex.Force - (currentClothVertex.Force * SPRING_DAMPENING);
+                // Dampening All Forces
+                currentClothVertex.Force = currentClothVertex.Force - (currentClothVertex.Force * FORCE_DAMPENING);
 
 
                 // Integrate Velocity
                 {
                     currentClothVertex.Velocity = currentClothVertex.Velocity +
                                                   ((currentClothVertex.Force / VERTEX_MASS) * (deltaTime));
+
+                    // Dampening Velocity
+                    currentClothVertex.Velocity =
+                        currentClothVertex.Velocity - (currentClothVertex.Velocity * VELOCITY_DAMPENING);
+
                 }
 
                 // Integrate Position
@@ -227,8 +284,6 @@ namespace Assets
                 //}
             }
         }
-
-        
 
         private void OnDrawGizmos()
         {
@@ -253,19 +308,41 @@ namespace Assets
 
 
 
-                Vector2Int key = new  Vector2Int(1,1);
-                var neighbors = GetNeighbors(this.clothVertexStructure, key);
-                var centerVertex = this.clothVertexStructure[key];
+                Vector2Int key = new  Vector2Int(2,2);
+                List<ClothVertex> structuralNeighbors;
+                List<ClothVertex> shearNeighbors;
+                List<ClothVertex> flexiconNeighbors;
+                GetMassSpringNeighbors(this.clothVertexStructure, key, out structuralNeighbors, out shearNeighbors, out flexiconNeighbors);
 
-                Gizmos.color = Color.yellow;
-                
-                Gizmos.DrawSphere(transform.MultiplyPoint(centerVertex.Position), 0.1f);
-
-                Gizmos.color = Color.red;
-                foreach (var neighbor in neighbors)
+                // Color Center
                 {
-                    Gizmos.DrawSphere(transform.MultiplyPoint(neighbor.Position), 0.1f);
+                    var centerVertex = this.clothVertexStructure[key];
+                    Gizmos.color = Color.yellow;
+                    Gizmos.DrawSphere(transform.MultiplyPoint(centerVertex.Position), 0.1f);
                 }
+
+
+                // Color neighbors
+                {
+                    Gizmos.color = Color.red;
+                    foreach (var neighbor in structuralNeighbors)
+                    {
+                        Gizmos.DrawSphere(transform.MultiplyPoint(neighbor.Position), 0.1f);
+                    }
+
+                    Gizmos.color = Color.green;
+                    foreach (var neighbor in shearNeighbors)
+                    {
+                        Gizmos.DrawSphere(transform.MultiplyPoint(neighbor.Position), 0.1f);
+                    }
+
+                    Gizmos.color = Color.blue;
+                    foreach (var neighbor in flexiconNeighbors)
+                    {
+                        Gizmos.DrawSphere(transform.MultiplyPoint(neighbor.Position), 0.1f);
+                    }
+                }
+                
             }
 
             else
