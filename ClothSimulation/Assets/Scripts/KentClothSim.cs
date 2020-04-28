@@ -53,7 +53,7 @@ namespace Assets
 
 
         [Header("Collision Properties Properties")]
-        private List<SphereCollider> SphereColliders;
+        [SerializeField]private List<SphereCollider> SphereColliders;
 
         private List<Vector2Int> fixedPoints;
         private Dictionary<Vector2Int, ClothVertex> clothVertexStructure;
@@ -454,8 +454,8 @@ namespace Assets
 
 
                     // Air Resistance
-                    currentClothVertex.Force +=
-                        ((-currentClothVertex.Force / VERTEX_MASS) * Mathf.Pow(currentVelocity, 2.0f));
+                    //currentClothVertex.Force +=
+                    //    ((-currentClothVertex.Force / VERTEX_MASS) * Mathf.Pow(currentVelocity, 2.0f));
                 }
 
                 
@@ -476,6 +476,21 @@ namespace Assets
                     {
                         currentClothVertex.Position = currentClothVertex.Position +
                                                       ((currentClothVertex.Velocity) * (deltaTime));
+
+                        // Check collisions and repel
+                        foreach (var sphereCollider in this.SphereColliders)
+                        {
+                            float calculatedRadius = sphereCollider.radius * sphereCollider.transform.localScale.x;
+                            Vector3 sphereToVertex = (currentClothVertex.Position - sphereCollider.transform.position);
+                            float length = sphereToVertex.magnitude;
+                            if (length < calculatedRadius)
+                            {
+                                currentClothVertex.Position =
+                                    (sphereToVertex.normalized * (calculatedRadius + 1.0f)) + sphereCollider.transform.position;
+                            }
+                        }
+
+
                     }
                     
                 }
