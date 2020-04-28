@@ -45,10 +45,11 @@ namespace Assets
 
 
         [Header("Dampening Properties")]
-        [SerializeField] [Range(0, 1000)] private float FORCE_DAMPENING = 0.5f;
-        [SerializeField] [Range(0, 1000)] private float SPRING_DAMPENING = 0.5f;
-        [SerializeField] [Range(0, 2)] private float VELOCITY_DAMPENING = 0.5f;
-        [SerializeField] [Range(0, 2)] private float GRAVITY_DAMPENING = 0.2f;
+        [SerializeField] [Range(0, 1)] private float FORCE_DAMPENING_RATIO = 0.5f;
+        [SerializeField] [Range(0, 1)] private float VELOCITY_DAMPENING_RATIO = 0.08f;
+
+        [SerializeField] [Range(0, 1000)] private float SPRING_DAMPENING_VEL = 0.9f;
+        [SerializeField] [Range(0, 1000)] private float GRAVITY_DAMPENING_VEL = 0.686f;
 
         private Dictionary<Vector2Int, ClothVertex> clothVertexStructure;
         private Vector2Int clothResolution = new Vector2Int(11,11);// Hardcoded due to used plane mesh
@@ -301,7 +302,7 @@ namespace Assets
                 // Calculate Forces
                 {
                     ////Gravity
-                    Vector3 gravityForce = (GRAVITY_CONSTANT * VERTEX_MASS);
+                    Vector3 gravityForce = (GRAVITY_CONSTANT * VERTEX_MASS) - (new Vector3(0.0f, GRAVITY_DAMPENING_VEL * currentVelocity.y,0.0f));
                     currentClothVertex.Force += gravityForce;
 
 
@@ -318,17 +319,17 @@ namespace Assets
                     foreach (ClothVertex neighbor in currentClothVertex.StructuralNeighbors)
                     {
                         springForce += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position, currentVelocity, neighbor.Velocity,
-                            this.SPRING_STIFFNESS_CONSTANT_STRUCTURAL, restLengthStructural, SPRING_DAMPENING);
+                            this.SPRING_STIFFNESS_CONSTANT_STRUCTURAL, restLengthStructural, SPRING_DAMPENING_VEL);
                     }
                     foreach (ClothVertex neighbor in currentClothVertex.ShearNeighbors)
                     {
                         springForce += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position, currentVelocity, neighbor.Velocity,
-                            this.SPRING_STIFFNESS_CONSTANT_SHEAR, restLengthShear, SPRING_DAMPENING);
+                            this.SPRING_STIFFNESS_CONSTANT_SHEAR, restLengthShear, SPRING_DAMPENING_VEL);
                     }
                     foreach (ClothVertex neighbor in currentClothVertex.FlexionNeighbors)
                     {
                         springForce += CalculateAdditiveSpringForce(currentClothVertex.Position, neighbor.Position, currentVelocity, neighbor.Velocity,
-                            this.SPRING_STIFFNESS_CONSTANT_FLEXION, restLengthFlexion, SPRING_DAMPENING);
+                            this.SPRING_STIFFNESS_CONSTANT_FLEXION, restLengthFlexion, SPRING_DAMPENING_VEL);
                     }
 
 
@@ -336,8 +337,7 @@ namespace Assets
                     currentClothVertex.Force += springForce;
 
                     // Dampening All Forces
-                    //Debug.Log(currentClothVertex.Force);
-                    currentClothVertex.Force = currentClothVertex.Force - (currentClothVertex.Force * FORCE_DAMPENING);
+                    currentClothVertex.Force = currentClothVertex.Force - (currentClothVertex.Force * FORCE_DAMPENING_RATIO);
 
                     //Vector3 dampening = -FORCE_DAMPENING * currentVelocity;
                     //currentClothVertex.Force += (dampening);
@@ -364,7 +364,7 @@ namespace Assets
                     //}
 
                     // Viscous/Wind Fluid Force
-                    //currentClothVertex.Force += (VISCOUS_CONSTANT * (Vector3.Dot(currentNormal, VISCOUS_FORCE_CONSTANT - currentVelocity)) * currentNormal);
+                    currentClothVertex.Force += (VISCOUS_CONSTANT * (Vector3.Dot(currentNormal, VISCOUS_FORCE_CONSTANT - currentVelocity)) * currentNormal);
 
 
                     // Air Resistance
@@ -380,7 +380,7 @@ namespace Assets
 
                     //// Dampening Velocity
                     currentClothVertex.Velocity =
-                        currentClothVertex.Velocity - (currentClothVertex.Velocity * VELOCITY_DAMPENING);
+                        currentClothVertex.Velocity - (currentClothVertex.Velocity * VELOCITY_DAMPENING_RATIO);
 
                 }
 
