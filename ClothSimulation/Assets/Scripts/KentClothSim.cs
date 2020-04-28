@@ -51,12 +51,20 @@ namespace Assets
         [SerializeField] [Range(0, 1000)] private float SPRING_DAMPENING_VEL = 0.9f;
         [SerializeField] [Range(0, 1000)] private float GRAVITY_DAMPENING_VEL = 0.686f;
 
+
+        [Header("Collision Properties Properties")]
+        private List<SphereCollider> SphereColliders;
+
+        private List<Vector2Int> fixedPoints;
         private Dictionary<Vector2Int, ClothVertex> clothVertexStructure;
         private Vector2Int clothResolution = new Vector2Int(11,11);// Hardcoded due to used plane mesh
-
+        
+        private Vector3 currentPosition;
+        private Quaternion currentRotation;
+        
 
         // Cached values
-        
+
 
         private void Awake()
         {
@@ -66,15 +74,27 @@ namespace Assets
         // Start is called before the first frame update
         void Start()
         {
-            clothVertexStructure = ConstructClothMeshDataStructure(this.FrontPlaneMesh.GetComponent<MeshFilter>().mesh, clothResolution);
+            this.fixedPoints = new List<Vector2Int>()
+            {
+                new Vector2Int(0, 0),
+                new Vector2Int(0, 10)
+            };
+
+            clothVertexStructure = ConstructClothMeshDataStructure(this.FrontPlaneMesh.GetComponent<MeshFilter>().mesh, clothResolution, fixedPoints);
 
             // Reverse backside trinagles
+            this.currentRotation = Quaternion.identity;
             var triangles = this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.triangles;
             this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.triangles = triangles.Reverse().ToArray();
+            
+
+
+
+
         }
 
 
-        private static Dictionary<Vector2Int, ClothVertex> ConstructClothMeshDataStructure(Mesh givenMesh,Vector2Int resolution)
+        private static Dictionary<Vector2Int, ClothVertex> ConstructClothMeshDataStructure(Mesh givenMesh,Vector2Int resolution, List<Vector2Int> fixedPoints )
         {
             Vector3[] vertices = givenMesh.vertices;
             Vector3[] normals = givenMesh.normals;
@@ -101,10 +121,10 @@ namespace Assets
             }
 
             // Set Anchor Points
-            toReturn[new Vector2Int(0, 0)].Fixed = true;
-            toReturn[new Vector2Int(0, 10)].Fixed = true;
-            //toReturn[new Vector2Int(10, 10)].Fixed = true;
-            //toReturn[new Vector2Int(10, 0)].Fixed = true;
+            foreach(var fixedPoint in fixedPoints)
+            {
+                toReturn[fixedPoint].Fixed = true;
+            }
 
 
             // Construct Neighbor Lists
@@ -248,7 +268,79 @@ namespace Assets
         // Update is called once per frame
         void Update()
         {
-          
+
+            if (Input.GetKey(KeyCode.Q))
+            {
+                Quaternion rotationToApply = Quaternion.AngleAxis(0.5f * Time.deltaTime, new Vector3(0, 1, 0));
+                this.currentRotation *= rotationToApply;
+                Matrix4x4 rotationMatrix = Matrix4x4.Rotate(this.currentRotation);
+
+                foreach (var fixedPoint in this.fixedPoints)
+                {
+                    Vector3 transformedFixedPoint = rotationMatrix.MultiplyPoint(this.clothVertexStructure[fixedPoint].Position);
+                    this.clothVertexStructure[fixedPoint].Position = transformedFixedPoint;
+                }
+                
+            }
+            else if (Input.GetKeyDown(KeyCode.E))
+            {
+                Quaternion rotationToApply = Quaternion.AngleAxis(-0.5f * Time.deltaTime, new Vector3(0, 1, 0));
+                this.currentRotation *= rotationToApply;
+                Matrix4x4 rotationMatrix = Matrix4x4.Rotate(this.currentRotation);
+
+                foreach (var fixedPoint in this.fixedPoints)
+                {
+                    Vector3 transformedFixedPoint = rotationMatrix.MultiplyPoint(this.clothVertexStructure[fixedPoint].Position);
+                    this.clothVertexStructure[fixedPoint].Position = transformedFixedPoint;
+                }
+            }
+
+
+
+            if (Input.GetKey(KeyCode.RightArrow))
+            {
+                Vector3 translationToApply = new Vector3(0.5f * Time.deltaTime, 0.0f, 0.0f);
+                Matrix4x4 translationMatrix = Matrix4x4.Translate(translationToApply);
+
+                foreach (var fixedPoint in this.fixedPoints)
+                {
+                    Vector3 transformedFixedPoint = translationMatrix.MultiplyPoint(this.clothVertexStructure[fixedPoint].Position);
+                    this.clothVertexStructure[fixedPoint].Position = transformedFixedPoint;
+                }
+            }
+            else if (Input.GetKey(KeyCode.LeftArrow))
+            {
+                Vector3 translationToApply = new Vector3(-0.5f * Time.deltaTime, 0.0f, 0.0f);
+                Matrix4x4 translationMatrix = Matrix4x4.Translate(translationToApply);
+
+                foreach (var fixedPoint in this.fixedPoints)
+                {
+                    Vector3 transformedFixedPoint = translationMatrix.MultiplyPoint(this.clothVertexStructure[fixedPoint].Position);
+                    this.clothVertexStructure[fixedPoint].Position = transformedFixedPoint;
+                }
+            }
+            else if (Input.GetKey(KeyCode.UpArrow))
+            {
+                Vector3 translationToApply = new Vector3(0.0f, 0.0f, 0.5f * Time.deltaTime);
+                Matrix4x4 translationMatrix = Matrix4x4.Translate(translationToApply);
+
+                foreach (var fixedPoint in this.fixedPoints)
+                {
+                    Vector3 transformedFixedPoint = translationMatrix.MultiplyPoint(this.clothVertexStructure[fixedPoint].Position);
+                    this.clothVertexStructure[fixedPoint].Position = transformedFixedPoint;
+                }
+            }
+            else if (Input.GetKey(KeyCode.DownArrow))
+            {
+                Vector3 translationToApply = new Vector3(0.0f, 0.0f, -0.5f * Time.deltaTime);
+                Matrix4x4 translationMatrix = Matrix4x4.Translate(translationToApply);
+
+                foreach (var fixedPoint in this.fixedPoints)
+                {
+                    Vector3 transformedFixedPoint = translationMatrix.MultiplyPoint(this.clothVertexStructure[fixedPoint].Position);
+                    this.clothVertexStructure[fixedPoint].Position = transformedFixedPoint;
+                }
+            }
 
         }
 
@@ -269,12 +361,6 @@ namespace Assets
             Mesh backMesh = BackPlaneMesh.GetComponent<MeshFilter>().mesh;
             backMesh.vertices = frontMesh.vertices;
             backMesh.RecalculateNormals();
-            //Vector3[] normals = backMesh.normals;
-            //for(int i = 0; i < normals.Length; i++)
-            //{
-            //    backMesh.normals[i] = normals[i] * -1.0f;
-            //}
-            
             backMesh.RecalculateTangents();
             
         }
@@ -368,8 +454,8 @@ namespace Assets
 
 
                     // Air Resistance
-                    //currentClothVertex.Force +=
-                    //    ((-currentClothVertex.Force / VERTEX_MASS) * Mathf.Pow(currentVelocity, 2.0f));
+                    currentClothVertex.Force +=
+                        ((-currentClothVertex.Force / VERTEX_MASS) * Mathf.Pow(currentVelocity, 2.0f));
                 }
 
                 
