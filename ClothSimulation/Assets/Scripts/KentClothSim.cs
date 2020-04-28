@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 namespace Assets
 {
@@ -19,6 +20,10 @@ namespace Assets
 
     public class KentClothSim : MonoBehaviour
     {
+        [Header("Cloth Main Properties")]
+        [SerializeField] private MeshFilter FrontPlaneMesh;
+        [SerializeField] private MeshFilter BackPlaneMesh;
+
         [Header("Force Properties")]
         [SerializeField] private Vector3 GRAVITY_CONSTANT = new Vector3(0.0f, -9.8f, 0.0f);
 
@@ -60,10 +65,11 @@ namespace Assets
         // Start is called before the first frame update
         void Start()
         {
-            clothVertexStructure = ConstructClothMeshDataStructure(GetComponent<MeshFilter>().mesh, clothResolution);
+            clothVertexStructure = ConstructClothMeshDataStructure(this.FrontPlaneMesh.GetComponent<MeshFilter>().mesh, clothResolution);
 
-            
-            
+            // Reverse backside trinagles
+            var triangles = this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.triangles;
+            this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.triangles = triangles.Reverse().ToArray();
         }
 
 
@@ -252,11 +258,24 @@ namespace Assets
             //Debug.Log(deltaTime);
             UpdateSimulateCloth(this.clothVertexStructure, deltaTime);
 
-            Mesh givenMesh = GetComponent<MeshFilter>().mesh;
-            givenMesh.vertices = ConstructVertexArrayFromDataStructure(this.clothVertexStructure, this.clothResolution);
-            givenMesh.RecalculateNormals();
-            givenMesh.RecalculateTangents();
-            UpdateClothMeshDataNormalsFromDataStructure(this.clothVertexStructure, givenMesh, this.clothResolution);
+            Mesh frontMesh = FrontPlaneMesh.GetComponent<MeshFilter>().mesh;
+            frontMesh.vertices = ConstructVertexArrayFromDataStructure(this.clothVertexStructure, this.clothResolution);
+            frontMesh.RecalculateNormals();
+            frontMesh.RecalculateTangents();
+            UpdateClothMeshDataNormalsFromDataStructure(this.clothVertexStructure, frontMesh, this.clothResolution);
+
+
+            Mesh backMesh = BackPlaneMesh.GetComponent<MeshFilter>().mesh;
+            backMesh.vertices = frontMesh.vertices;
+            backMesh.RecalculateNormals();
+            //Vector3[] normals = backMesh.normals;
+            //for(int i = 0; i < normals.Length; i++)
+            //{
+            //    backMesh.normals[i] = normals[i] * -1.0f;
+            //}
+            
+            backMesh.RecalculateTangents();
+            
         }
 
 
@@ -457,15 +476,19 @@ namespace Assets
 
             else
             {
-                Mesh mesh = GetComponent<MeshFilter>().sharedMesh;
-                for (int i = 0; i < mesh.vertices.Length; i++)
+                if (this.FrontPlaneMesh != null)
                 {
-                    Vector3 vertex = mesh.vertices[i];
+                    Mesh mesh = FrontPlaneMesh.GetComponent<MeshFilter>().sharedMesh;
+                    for (int i = 0; i < mesh.vertices.Length; i++)
+                    {
+                        Vector3 vertex = mesh.vertices[i];
 
-                    vertex = this.transform.localToWorldMatrix.MultiplyPoint(vertex);
+                        vertex = this.transform.localToWorldMatrix.MultiplyPoint(vertex);
 
-                    Gizmos.DrawSphere(vertex, 0.1f);
+                        Gizmos.DrawSphere(vertex, 0.1f);
+                    }
                 }
+                
             }
         }
     }
