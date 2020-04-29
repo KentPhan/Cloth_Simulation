@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
@@ -61,14 +62,13 @@ namespace Assets
         
         private Vector3 currentPosition;
         private Quaternion currentRotation;
-        
-
-        // Cached values
+        private Vector3[] resetVertexPositions;
+        private Vector3[] resetVertexNormals;
 
 
         private void Awake()
         {
-            
+            Cursor.visible = true;   
         }
 
         // Start is called before the first frame update
@@ -79,6 +79,9 @@ namespace Assets
                 new Vector2Int(0, 0),
                 new Vector2Int(0, 10)
             };
+            
+            resetVertexPositions = this.FrontPlaneMesh.GetComponent<MeshFilter>().mesh.vertices;
+            resetVertexNormals = this.FrontPlaneMesh.GetComponent<MeshFilter>().mesh.normals;
 
             clothVertexStructure = ConstructClothMeshDataStructure(this.FrontPlaneMesh.GetComponent<MeshFilter>().mesh, clothResolution, fixedPoints);
 
@@ -86,11 +89,6 @@ namespace Assets
             this.currentRotation = Quaternion.identity;
             var triangles = this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.triangles;
             this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.triangles = triangles.Reverse().ToArray();
-            
-
-
-
-
         }
 
 
@@ -344,7 +342,9 @@ namespace Assets
 
         }
 
-
+        /// <summary>
+        /// Update but fixed
+        /// </summary>
         private void FixedUpdate()
         {
             float deltaTime = Time.fixedDeltaTime;
@@ -365,14 +365,13 @@ namespace Assets
             
         }
 
-
-
-
+        /// <summary>
+        /// Primary Simulation Function
+        /// </summary>
+        /// <param name="clothStructure"></param>
+        /// <param name="deltaTime"></param>
         private void UpdateSimulateCloth(Dictionary<Vector2Int, ClothVertex> clothStructure, float deltaTime)
         {
-
-            
-
             foreach (KeyValuePair<Vector2Int, ClothVertex> keyPair in clothStructure)
             {
 
@@ -380,10 +379,6 @@ namespace Assets
                 ClothVertex currentClothVertex = keyPair.Value;
                 Vector3 currentVelocity = currentClothVertex.Velocity;
                 Vector3 currentNormal = currentClothVertex.Normal;
-
-
-                
-
 
                 // Calculate Forces
                 {
@@ -453,9 +448,9 @@ namespace Assets
                     currentClothVertex.Force += (VISCOUS_CONSTANT * (Vector3.Dot(currentNormal, VISCOUS_FORCE_CONSTANT - currentVelocity)) * currentNormal);
 
 
-                    // Air Resistance
+                    //// Air Resistance
                     //currentClothVertex.Force +=
-                    //    ((-currentClothVertex.Force / VERTEX_MASS) * Mathf.Pow(currentVelocity, 2.0f));
+                    //    ((-currentClothVertex.Force / VERTEX_MASS) * Mathf.Pow(currentVelocity.magnitude, 2.0f));
                 }
 
                 
@@ -494,15 +489,12 @@ namespace Assets
                     }
                     
                 }
-
-                //if (keyPair.Key.x % 2 == 0)
-                //{
-                //    //keyPair.Value.Position.x = Mathf.Sin(Time.time);
-                //    //vertices[i] += normals[i] * Mathf.Sin(Time.time);
-                //}
             }
         }
 
+        /// <summary>
+        /// Draws Debugging Functionality
+        /// </summary>
         private void OnDrawGizmos()
         {
 
@@ -592,5 +584,23 @@ namespace Assets
                 
             }
         }
+        
+
+        // Resets Simulation
+        public void ResetSimulation()
+        {
+            Debug.Log("Reset Ran");
+
+            this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.vertices = resetVertexPositions;
+            this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.normals = resetVertexNormals;
+
+            clothVertexStructure = ConstructClothMeshDataStructure(this.BackPlaneMesh.GetComponent<MeshFilter>().mesh, clothResolution, fixedPoints);
+
+            // Reverse backside trinagles
+            this.currentRotation = Quaternion.identity;
+            var triangles = this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.triangles;
+            this.BackPlaneMesh.GetComponent<MeshFilter>().mesh.triangles = triangles.Reverse().ToArray();
+        }
     }
 }
+
