@@ -1,4 +1,8 @@
+Kent Phan - Cloth Simulation Submission
+
 All the code in Assets\Scripts is my own code.
+
+The primary cloth simulation script is the KentClothSim.cs. All of the code is my own.
 
 Materials were created from Substance Painter
 
