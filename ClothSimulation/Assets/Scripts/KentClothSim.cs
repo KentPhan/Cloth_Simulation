@@ -297,7 +297,7 @@ namespace Assets
 
             if (Input.GetKey(KeyCode.RightArrow))
             {
-                Vector3 translationToApply = new Vector3(0.5f * Time.deltaTime, 0.0f, 0.0f);
+                Vector3 translationToApply = new Vector3(1.0f * Time.deltaTime, 0.0f, 0.0f);
                 Matrix4x4 translationMatrix = Matrix4x4.Translate(translationToApply);
 
                 foreach (var fixedPoint in this.fixedPoints)
@@ -308,7 +308,7 @@ namespace Assets
             }
             else if (Input.GetKey(KeyCode.LeftArrow))
             {
-                Vector3 translationToApply = new Vector3(-0.5f * Time.deltaTime, 0.0f, 0.0f);
+                Vector3 translationToApply = new Vector3(-1.0f * Time.deltaTime, 0.0f, 0.0f);
                 Matrix4x4 translationMatrix = Matrix4x4.Translate(translationToApply);
 
                 foreach (var fixedPoint in this.fixedPoints)
@@ -319,7 +319,7 @@ namespace Assets
             }
             else if (Input.GetKey(KeyCode.UpArrow))
             {
-                Vector3 translationToApply = new Vector3(0.0f, 0.0f, 0.5f * Time.deltaTime);
+                Vector3 translationToApply = new Vector3(0.0f, 0.0f, 1.0f * Time.deltaTime);
                 Matrix4x4 translationMatrix = Matrix4x4.Translate(translationToApply);
 
                 foreach (var fixedPoint in this.fixedPoints)
@@ -330,7 +330,7 @@ namespace Assets
             }
             else if (Input.GetKey(KeyCode.DownArrow))
             {
-                Vector3 translationToApply = new Vector3(0.0f, 0.0f, -0.5f * Time.deltaTime);
+                Vector3 translationToApply = new Vector3(0.0f, 0.0f, -1.0f * Time.deltaTime);
                 Matrix4x4 translationMatrix = Matrix4x4.Translate(translationToApply);
 
                 foreach (var fixedPoint in this.fixedPoints)
